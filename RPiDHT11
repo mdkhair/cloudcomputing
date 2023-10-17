@@ -1,0 +1,25 @@
+import RPi.GPIO as GPIO
+import Adafruit_DHT
+import time
+
+# Initialize GPIO
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+GPIO.cleanup()
+
+DHT_SENSOR = Adafruit_DHT.DHT11
+DHT_PIN = 4  # Set the GPIO pin where the DHT11 sensor is connected
+
+try:
+    while True:
+        humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
+
+        if humidity is not None and temperature is not None:
+            print(f"Temperature: {temperature}°C, Humidity: {humidity}%")
+        else:
+            print("Failed to retrieve data from DHT11 sensor")
+
+        time.sleep(4)  # Wait for a few seconds before reading again
+
+except KeyboardInterrupt:
+    GPIO.cleanup()  # Clean up GPIO on program exit
