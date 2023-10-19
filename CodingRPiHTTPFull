@@ -1,0 +1,36 @@
+import requests
+import Adafruit_DHT
+
+ssid = "5G_CPE"
+password = "123456789"
+server_address = "https://afandiazmi.com"
+id = "1"
+name_variable = "humidity"
+
+# Connect to the WiFi network
+# You may need to use a different library or method for WiFi connectivity on Raspberry Pi.
+# This code assumes your Raspberry Pi is already connected to the network.
+
+# Set the DHT sensor type and GPIO pin
+sensor = Adafruit_DHT.DHT11
+pin = 4  # Change this to the GPIO pin your sensor is connected to
+
+# Read data from the DHT11 sensor
+humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)
+
+if humidity is not None:
+    value_variable = str(humidity)  # Convert humidity to a string
+    url = f"{server_address}/api/updateOne/?id={id}&name={name_variable}&value={value_variable}"
+
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            print("HTTP request successful")
+            print("Response content:")
+            print(response.text)
+        else:
+            print(f"Error on HTTP request. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print("An error occurred:", e)
+else:
+    print("Failed to retrieve data from the DHT sensor. Check your wiring and sensor type.")
