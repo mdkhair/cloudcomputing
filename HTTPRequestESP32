@@ -3,7 +3,10 @@
 
 const char* ssid = "5G_CPE";
 const char* password = "123456789";
-const char* serverAddress = "https://afandiazmi.com";
+String serverAddress = "https://afandiazmi.com";  // Convert to String
+String id = "1";
+String namevariable = "humidity";
+String valuevariable = "70";
 
 void setup() {
   Serial.begin(115200);
@@ -15,16 +18,9 @@ void setup() {
     Serial.println("Connecting to WiFi...");
   }
   Serial.println("Connected to WiFi");
-
-  String id = "1";
-  String namevariable = "humidity";
-  String valuevariable = "70";
-
 }
 
 void loop() {
-
-  
   String url = serverAddress + "/api/updateOne/?id=" + id + "&name=" + namevariable + "&value=" + valuevariable;
 
   // Perform the HTTP GET request
