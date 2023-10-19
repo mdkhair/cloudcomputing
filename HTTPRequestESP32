@@ -1,0 +1,44 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char* ssid = "5G_CPE";
+const char* password = "123456789";
+const char* serverAddress = "https://afandiazmi.com";
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+
+  String id = "1";
+  String namevariable = "humidity";
+  String valuevariable = "70";
+
+}
+
+void loop() {
+
+  
+  String url = serverAddress + "/api/updateOne/?id=" + id + "&name=" + namevariable + "&value=" + valuevariable;
+
+  // Perform the HTTP GET request
+  HTTPClient http;
+  http.begin(url);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    String payload = http.getString();
+    Serial.println(httpCode);
+    Serial.println(payload);
+  } else {
+    Serial.println("Error on HTTP request");
+  }
+
+  http.end();
+}
