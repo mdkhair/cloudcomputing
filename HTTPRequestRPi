@@ -1,0 +1,26 @@
+import requests
+
+ssid = "5G_CPE"
+password = "123456789"
+server_address = "https://afandiazmi.com"
+id = "1"
+name_variable = "humidity"
+value_variable = "70"
+
+# Connect to the WiFi network
+# You may need to use a different library or method for WiFi connectivity on Raspberry Pi
+# (e.g., using `wpa_supplicant` for managing WiFi connections).
+# This code assumes your Raspberry Pi is already connected to the network.
+
+url = f"{server_address}/api/updateOne/?id={id}&name={name_variable}&value={value_variable}"
+
+try:
+    response = requests.get(url)
+    if response.status_code == 200:
+        print("HTTP request successful")
+        print("Response content:")
+        print(response.text)
+    else:
+        print(f"Error on HTTP request. Status code: {response.status_code}")
+except requests.exceptions.RequestException as e:
+    print("An error occurred:", e)
