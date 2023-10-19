@@ -1,0 +1,163 @@
+#include <pgmspace.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <WiFi.h>    
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
+#define THINGNAME "your thing" // Change this
+
+const char WIFI_SSID[] = "wifi SSID";            // Change this
+const char WIFI_PASSWORD[] = "wifi password";    // Change this
+const char AWS_IOT_ENDPOINT[] = "your endpoint"; // Change this
+
+// Amazon Root CA 1
+static const char AWS_CERT_CA[] PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+-----END CERTIFICATE-----
+)EOF";
+
+// Device Certificate                                               // Change this
+static const char AWS_CERT_CRT[] PROGMEM = R"KEY(
+-----BEGIN CERTIFICATE-----
+-----END CERTIFICATE-----
+)KEY";
+
+// Device Private Key                                               // Change this
+static const char AWS_CERT_PRIVATE[] PROGMEM = R"KEY(
+-----BEGIN RSA PRIVATE KEY-----
+-----END RSA PRIVATE KEY-----
+)KEY";
+
+#define LDR_PIN A0 // Analog pin connected to the LDR
+
+#define AWS_IOT_PUBLISH_TOPIC "your topic"
+#define AWS_IOT_SUBSCRIBE_TOPIC "your topic"
+
+int ldrValue;
+String lightIntensityDescription;
+
+WiFiClientSecure net = WiFiClientSecure();
+PubSubClient client(net);
+
+const char* NTP_SERVER = "pool.ntp.org";
+const int NTP_TIMEZONE = 8;  // Kuala Lumpur timezone offset in hours
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, NTP_SERVER, NTP_TIMEZONE * 3600, 60000);
+
+void connectAWS()
+{
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  Serial.println("Connecting to Wi-Fi");
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+
+  // Configure WiFiClientSecure to use the AWS IoT device credentials
+  net.setCACert(AWS_CERT_CA);
+  net.setCertificate(AWS_CERT_CRT);
+  net.setPrivateKey(AWS_CERT_PRIVATE);
+
+  // Connect to the MQTT broker on the AWS endpoint we defined earlier
+  client.setServer(AWS_IOT_ENDPOINT, 8883);
+
+  // Create a message handler
+  client.setCallback(messageHandler);
+
+  Serial.println("Connecting to AWS IoT");
+
+  while (!client.connect(THINGNAME))
+  {
+    Serial.print(".");
+    delay(100);
+  }
+
+  if (!client.connected())
+  {
+    Serial.println("AWS IoT Timeout!");
+    return;
+  }
+
+  // Subscribe to a topic
+  client.subscribe(AWS_IOT_SUBSCRIBE_TOPIC);
+
+  Serial.println("AWS IoT Connected!");
+}
+
+void publishMessage()
+{
+  StaticJsonDocument<200> doc;
+  String dateTimeStr = timeClient.getFormattedDate();
+  int spaceIndex = dateTimeStr.indexOf('T'); // Find the 'T' character that separates date and time
+  String dateStr = dateTimeStr.substring(0, spaceIndex); // Extract the date part
+  String timeStr = dateTimeStr.substring(spaceIndex + 1, dateTimeStr.length() - 1); // Extract the time part
+
+  doc["date"] = dateStr;
+  doc["time"] = timeStr;
+  doc["light_intensity"] = ldrValue;
+  doc["intensity_description"] = lightIntensityDescription;
+
+  char jsonBuffer[512];
+  serializeJson(doc, jsonBuffer);
+
+  client.publish(AWS_IOT_PUBLISH_TOPIC, jsonBuffer);
+}
+
+void messageHandler(char* topic, byte* payload, unsigned int length)
+{
+  Serial.print("incoming: ");
+  Serial.println(topic);
+
+  StaticJsonDocument<200> doc;
+  deserializeJson(doc, payload);
+  const char* message = doc["message"];
+  Serial.println(message);
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  connectAWS();
+  pinMode(LDR_PIN, INPUT);
+
+  // Initialize the NTP client
+  timeClient.begin();
+  timeClient.update();
+}
+
+void loop()
+{
+  ldrValue = analogRead(LDR_PIN);
+  if (ldrValue >= 0 && ldrValue <= 400) 
+  {
+    lightIntensityDescription = "Very Bright";
+  } 
+  else if (ldrValue >= 401 && ldrValue <= 800) 
+  {
+    lightIntensityDescription = "Bright";
+  } 
+  else if (ldrValue >= 801 && ldrValue <= 1200) 
+  {
+    lightIntensityDescription = "Dark";
+  } 
+  else 
+  {
+    lightIntensityDescription = "Very Dark";
+  }
+  Serial.print("Light Intensity: ");
+  Serial.println(ldrValue);
+
+  publishMessage();
+  client.loop();
+
+  // Update the NTP client
+  timeClient.update();
+
+  delay(1000);
+}
